@@ -1,0 +1,423 @@
+using UnityEngine;
+using System.IO;
+using System.Security.Cryptography;
+using System.Collections.Generic;
+
+public class SaveDataManager : MonoBehaviour
+{
+    public static SaveDataManager _instance;
+    [SerializeField] private string _saveDirectoryName = "Saves/";
+    [SerializeField] private string _saveFileName = "save.lsd";
+    [SerializeField] private bool _prettyJson = false;
+    private static SaveDataClass _saveDataClassScript;
+    private bool _useEncryption = true;
+    private string _saveFolderPath;
+    private string _saveFilePath;
+    private FileStream _dataStream;
+    private static readonly byte[] _savedKey = { 0x16, 0x15, 0x16, 0x15, 0x16, 0x15, 0x16, 0x15, 0x16, 0x15, 0x16, 0x15, 0x16, 0x15, 0x16, 0x15 };
+
+    private void Awake()
+    {
+        if(_instance != null)
+        {
+            Debug.LogWarning("Another save manager found! Destorying GameObject.");
+            Destroy(gameObject);
+            //This return may break things, if you are having problems delte it.
+            return;
+        }
+        else
+        {
+            _instance = this;
+            InitializeSaveDataClass();
+            DontDestroyOnLoad(gameObject);
+            Debug.Log("This is the main save Manager");
+        }
+
+        if(Application.isEditor)
+        {
+            //Debug.Log("In Unity Editor");
+            _saveFolderPath = Path.Combine(Application.dataPath, _saveDirectoryName);
+        }
+        else
+        {
+            //Debug.Log("In Standalone Build");
+            _saveFolderPath = Path.Combine(Application.persistentDataPath, _saveDirectoryName);
+        }
+
+        _saveFilePath = Path.Combine(_saveFolderPath, _saveFileName);
+
+        if(!Directory.Exists(_saveFolderPath))
+        {
+            Debug.LogWarning("No save directory found, creating one!");
+            Directory.CreateDirectory(_saveFolderPath);
+        }
+
+        if(!File.Exists(_saveFilePath))
+        {
+            Debug.LogWarning("No save file found, creating one!");
+            File.Create(_saveFilePath);
+        }
+    }
+
+    [ContextMenu("Save")]
+
+    public void SaveDataToJson()
+    {
+        if(_useEncryption == true)
+        {
+            //Create a new AES instance.
+            Aes _iAes = Aes.Create();
+
+            //Create a FileStream for creating files.
+            _dataStream = new FileStream(_saveFilePath, FileMode.Create);
+
+            //Save the new generated IV.
+            byte[] _inputIV = _iAes.IV;
+
+            //Write the IV to the FileStream unencrypted.
+            _dataStream.Write(_inputIV, 0, _inputIV.Length);
+
+            //Create a CryptoStream, wrapping FileStream.
+            CryptoStream _iStream = new CryptoStream
+            (
+                _dataStream,
+                _iAes.CreateEncryptor(_savedKey, _iAes.IV),
+                CryptoStreamMode.Write
+            );
+
+            //Create a StreamWriter, wrapping CryptoStream.
+            StreamWriter _sWriter = new StreamWriter(_iStream);
+
+            string _sOToJsonEncrypted = JsonUtility.ToJson(_saveDataClassScript, _prettyJson);
+
+            //Write to the innermost stream which will encrypt.
+            _sWriter.Write(_sOToJsonEncrypted);
+
+            Debug.Log("Saved encrypted to " + _saveFilePath + "!");
+
+            //Close StreamWriter.
+            _sWriter.Close();
+
+            //Close CryptoStream.
+            _iStream.Close();
+
+            //Close FileSteam.
+            _dataStream.Close();
+            
+        }
+        else
+        {
+            string _sOToJson = JsonUtility.ToJson(_saveDataClassScript, _prettyJson);
+
+            File.WriteAllText(_saveFilePath, _sOToJson);
+
+            Debug.Log("Saved to " + _saveFilePath + "!");
+            //Debug.Log(_sOToJson);
+        }
+    }
+
+    [ContextMenu("Load")]
+    public void JsonToSaveData()
+    {
+        if(File.Exists(_saveFilePath))
+        {   
+            //Debug.Log("Save file exists");
+
+            string _fileContents = File.ReadAllText(_saveFilePath);
+
+            if(_fileContents.Length == 0)
+            {
+                Debug.Log("Save file is empty, if read it will break everything :).");
+                InitializeSaveDataClass();
+                return;
+            }
+            else
+            {
+                if(_useEncryption == true)
+                {
+                    //Debug.Log("Reading Encrypted Save File");
+                    //Create a new filestream for opening the save file in the path.
+                    _dataStream = new FileStream(_saveFilePath, FileMode.Open);
+
+                    //Crease a new AES instance.
+                    Aes _oAes = Aes.Create();
+
+                    //Create an array of bytes the length of the AES IV.
+                    byte[] _outputIV = new byte[_oAes.IV.Length];
+
+                    //Read the iV from the file.
+                    _dataStream.Read(_outputIV, 0, _outputIV.Length);
+
+                    //Create a CryptoStream, wrappuing FileStream
+                    CryptoStream _oStream = new CryptoStream
+                    (
+                        _dataStream,
+                        _oAes.CreateDecryptor(_savedKey, _outputIV),
+                        CryptoStreamMode.Read
+                    );
+
+                    //Create a StreamReader, wrapping CryptoStream
+                    StreamReader _reader = new StreamReader(_oStream);
+
+                    //Read the entire file into a string.
+                    string _readStream = _reader.ReadToEnd();
+
+                    //Always close a stream after usage.
+                    _reader.Close();
+
+                    //Clost the filestream
+                    _dataStream.Close();
+
+                    JsonUtility.FromJsonOverwrite(_readStream, _saveDataClassScript);
+
+                    Debug.Log("Loaded encrypted from " + _saveFilePath + "!");
+                }
+                else
+                {
+                    //Debug.Log("Reading Unencrypted Save File");
+                    string _jsonToSO = File.ReadAllText(_saveFilePath);
+
+                    JsonUtility.FromJsonOverwrite(_jsonToSO, _saveDataClassScript);
+
+                    Debug.Log("Loaded from " + _saveFilePath + "!");
+                    //Debug.Log(_jsonToSO);
+                }
+            }
+        }
+        else
+        {
+            Debug.LogError("Save file does not exist, it cannot be read.");
+        }
+    }
+
+    public void SaveInt(string _funcKey, int _funcValue)
+    {
+        if(_saveDataClassScript._saveDataIntList.Count == 0)
+        {
+            SaveDataClass.SaveDataInt _newIntData = new SaveDataClass.SaveDataInt { _key = _funcKey, _int = _funcValue };
+            _saveDataClassScript._saveDataIntList.Add(_newIntData);
+            //Debug.Log("Nothing in save data list, added new int.");
+        }
+        else
+        {
+            foreach(SaveDataClass.SaveDataInt _saveDataInt in _saveDataClassScript._saveDataIntList)
+            {
+                if(_saveDataInt._key == _funcKey)
+                {
+                    _saveDataInt._int = _funcValue;
+                    //Debug.Log("Updated existing int");
+                    //Return stops the code here.
+                    return;
+                }
+            }
+
+            SaveDataClass.SaveDataInt _newIntData = new SaveDataClass.SaveDataInt { _key = _funcKey, _int = _funcValue };
+            _saveDataClassScript._saveDataIntList.Add(_newIntData);
+            //Debug.Log("Nothing in save data list, added new int.");
+        }
+    }
+
+    public int GetInt(string _fucnKey)
+    {
+        foreach(SaveDataClass.SaveDataInt _saveDataInt in _saveDataClassScript._saveDataIntList)
+        {
+            if(_saveDataInt._key == _fucnKey)
+            {
+                return _saveDataInt._int;
+            }
+        }
+
+        //Debug.Log("Key ' " + _fucnKey + " ' does not exist, returning default int value.");
+        return 0;
+    }
+
+    public void SaveFloat(string _funcKey, float _funcValue)
+    {
+        if(_saveDataClassScript._saveDataFloatList.Count == 0)
+        {
+            SaveDataClass.SaveDataFloat _newFloatData = new SaveDataClass.SaveDataFloat { _key = _funcKey, _float = _funcValue };
+            _saveDataClassScript._saveDataFloatList.Add(_newFloatData);
+            //Debug.Log("Nothing in save data list, added new float.");
+        }
+        else
+        {
+            foreach(SaveDataClass.SaveDataFloat _saveDataFloat in _saveDataClassScript._saveDataFloatList)
+            {
+                if(_saveDataFloat._key == _funcKey)
+                {
+                    _saveDataFloat._float = _funcValue;
+                    //Debug.Log("Updated existing float");
+                    return;
+                }
+            }
+
+            SaveDataClass.SaveDataFloat _newFloatData = new SaveDataClass.SaveDataFloat { _key = _funcKey, _float = _funcValue };
+            _saveDataClassScript._saveDataFloatList.Add(_newFloatData);
+            //Debug.Log("Nothing in save data list, added new float.");
+        }
+    }
+
+    public float GetFloat(string _fucnKey)
+    {
+        foreach(SaveDataClass.SaveDataFloat _saveDataFloat in _saveDataClassScript._saveDataFloatList)
+        {
+            if(_saveDataFloat._key == _fucnKey)
+            {
+                return _saveDataFloat._float;
+            }
+        }
+
+        //Debug.Log("Key ' " + _fucnKey + " ' does not exist, returning default float value.");
+        return 0;
+    }
+
+    public void SaveBool(string _funcKey, bool _funcValue)
+    {
+        if(_saveDataClassScript._saveDataBoolList.Count == 0)
+        {
+            SaveDataClass.SaveDataBool _newBoolData = new SaveDataClass.SaveDataBool { _key = _funcKey, _bool = _funcValue };
+            _saveDataClassScript._saveDataBoolList.Add(_newBoolData);
+            //Debug.Log("Nothing in save data list, added new bool.");
+        }
+        else
+        {
+            foreach(SaveDataClass.SaveDataBool _saveDataBool in _saveDataClassScript._saveDataBoolList)
+            {
+                if(_saveDataBool._key == _funcKey)
+                {
+                    _saveDataBool._bool = _funcValue;
+                    //Debug.Log("Updated existing bool");
+                    return;
+                }
+            }
+
+            SaveDataClass.SaveDataBool _newBoolData = new SaveDataClass.SaveDataBool { _key = _funcKey, _bool = _funcValue };
+            _saveDataClassScript._saveDataBoolList.Add(_newBoolData);
+            //Debug.Log("Nothing in save data list, added new bool.");
+        }
+    }
+
+    public bool GetBool(string _fucnKey)
+    {
+        foreach(SaveDataClass.SaveDataBool _saveDataBool in _saveDataClassScript._saveDataBoolList)
+        {
+            if(_saveDataBool._key == _fucnKey)
+            {
+                return _saveDataBool._bool;
+            }
+        }
+
+        //Debug.Log("Key ' " + _fucnKey + " ' does not exist, returning false.");
+        return false;
+    }
+
+    public void SaveString(string _funcKey, string _funcValue)
+    {
+        if(_saveDataClassScript._saveDataStringList.Count == 0)
+        {
+            SaveDataClass.SaveDataString _newStringData = new SaveDataClass.SaveDataString { _key = _funcKey, _string = _funcValue };
+            _saveDataClassScript._saveDataStringList.Add(_newStringData);
+            //Debug.Log("Nothing in save data list, added new string.");
+        }
+        else
+        {
+            foreach(SaveDataClass.SaveDataString _saveDataString in _saveDataClassScript._saveDataStringList)
+            {
+                if(_saveDataString._key == _funcKey)
+                {
+                    _saveDataString._string = _funcValue;
+                    //Debug.Log("Updated existing string");
+                    return;
+                }
+            }
+
+            SaveDataClass.SaveDataString _newStringData = new SaveDataClass.SaveDataString { _key = _funcKey, _string = _funcValue };
+            _saveDataClassScript._saveDataStringList.Add(_newStringData);
+            //Debug.Log("Nothing in save data list, added new string.");
+        }
+    }
+
+    public string GetString(string _fucnKey)
+    {
+        foreach(SaveDataClass.SaveDataString _saveDataString in _saveDataClassScript._saveDataStringList)
+        {
+            if(_saveDataString._key == _fucnKey)
+            {
+                return _saveDataString._string;
+            }
+        }
+
+        //Debug.Log("Key ' " + _fucnKey + " ' does not exist, returning ''.");
+        return "";
+    }
+
+    public void DeleteAll()
+    {
+        _saveDataClassScript._saveDataIntList.Clear();
+        _saveDataClassScript._saveDataFloatList.Clear();
+        _saveDataClassScript._saveDataBoolList.Clear();
+        _saveDataClassScript._saveDataStringList.Clear();
+        File.Delete(_saveFilePath);
+    }
+
+    private void InitializeSaveDataClass()
+    {
+        _saveDataClassScript = new SaveDataClass();
+        _saveDataClassScript._saveDataIntList = new List<SaveDataClass.SaveDataInt>();
+        _saveDataClassScript._saveDataFloatList = new List<SaveDataClass.SaveDataFloat>();
+        _saveDataClassScript._saveDataBoolList = new List<SaveDataClass.SaveDataBool>();
+        _saveDataClassScript._saveDataStringList = new List<SaveDataClass.SaveDataString>();
+    }
+
+    //TODO Move these into the editor script.
+
+    #if UNITY_EDITOR
+    [ContextMenu("Int Write Test")]
+    private void IntWriteTest()
+    {
+        SaveInt("IntTest", 100);
+    }
+
+    [ContextMenu("Int Read Test")]
+    private void IntReadTest()
+    {
+        Debug.Log(GetInt("IntTest"));
+    }
+
+    [ContextMenu("Float Write Test")]
+    private void FloatWriteTest()
+    {
+        SaveFloat("FloatTest", 200.5f);
+    }
+
+    [ContextMenu("Float Read Test")]
+    private void FloatReadTest()
+    {
+        Debug.Log(GetFloat("FloatTest"));
+    }
+
+    [ContextMenu("Bool Write Test")]
+    private void BoolWriteTest()
+    {
+        SaveBool("BoolTest", true);
+    }
+
+    [ContextMenu("Bool Read Test")]
+    private void BoolReadTest()
+    {
+        Debug.Log(GetBool("BoolTest"));
+    }
+
+    [ContextMenu("String Write Test")]
+    private void StringWriteTest()
+    {
+        SaveString("StringTest", "string");
+    }
+
+    [ContextMenu("String Read Test")]
+    private void StringReadTest()
+    {
+        Debug.Log(GetString("StringTest"));
+    }
+    #endif
+}

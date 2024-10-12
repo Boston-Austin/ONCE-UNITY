@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5548579e4c37e8e41a18fc96b9fd397b, type: 3}
+  m_Name: OnceTestTiles
+  m_EditorClassIdentifier: 
+  Tiles:
+  - _group: OnceTestTiles
+    _tileID: 344065019
+    Default: {fileID: 1485136907365985419, guid: 6d0be941d27fd224696e3b51e7739382, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Grass Plate
+    Rules: []
+  - _group: OnceTestTiles
+    _tileID: -57935041
+    Default: {fileID: 6051937458822687542, guid: 5b960917f316fe54f91a405ea0d8de13, type: 3}
+    Randoms: []
+    Random: 0
+    _name: 'Grass Plate :'
+    Rules: []
+  - _group: OnceTestTiles
+    _tileID: -836162860
+    Default: {fileID: 3605485776892206452, guid: 9146e4425a063c94ba43af7475ea91dc, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Grass Corner L To Wall
+    Rules: []
+  - _group: OnceTestTiles
+    _tileID: 360659257
+    Default: {fileID: 6216129913051666474, guid: 31aea255b149bc34b97c650c1fc1f64a, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Grass To Wall
+    Rules: []
+  - _group: OnceTestTiles
+    _tileID: 1899032581
+    Default: {fileID: 4572357674031795403, guid: 1386e39017b702649982af3da0e2adc6, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Grass To Wall Corner R
+    Rules: []

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8dcb06e80fe08c4987ba281e7a6c33c, type: 3}
+  m_Name: Hacker Henry
+  m_EditorClassIdentifier: 
+  dialogue:
+  - 'Hi there!!!
+
+
+    I''m Hacker Henry'
+  - I can hack into all sorts of stuff! let me know if I can hack anything for you!
+  - Oh whats that you dont need anything hac
+  - "IP Address: 192.168.0.1\r\nLocation: 704 Pine Cove St. Plano Texas, 78751\r\nEmail:
+    bonjorchbuissiness@findmy.com\r\nPassword: r0ckyb@twrth\r\nCredit Card: 1637-5258-9152-3450
+    (Exp: 01/27, CVV: 107)\r\r\nSocial Security Number: 184-92-6726"
+  responses: []
